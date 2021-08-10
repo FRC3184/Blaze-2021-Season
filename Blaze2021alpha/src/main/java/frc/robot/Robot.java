@@ -6,6 +6,7 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
@@ -13,6 +14,7 @@ import edu.wpi.first.wpilibj.SpeedControllerGroup;
 //import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
 
+import com.revrobotics.CANEncoder;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
@@ -33,6 +35,7 @@ public class Robot extends TimedRobot {
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
   private DifferentialDrive m_myRobot;
   private XboxController m_leftStick;
+  private XboxController m_rightStick;
   private SpeedControllerGroup m_leftMotors;
   private SpeedControllerGroup m_rightMotors;
   private static final int leftDeviceID1 = 1;
@@ -44,10 +47,13 @@ public class Robot extends TimedRobot {
   private CANSparkMax m_leftMotor2;
   private CANSparkMax m_rightMotor2;
   private CANSparkMax m_winch;
+  private CANSparkMax m_shooter;
+  private CANEncoder shooter_e;
+  private WPI_TalonSRX m_feeder;
   private WPI_TalonSRX m_intake;
   private WPI_TalonSRX m_arm;
-  private WPI_VictorSPX m_leftdoor;
-  private WPI_VictorSPX m_rightdoor;
+  private WPI_VictorSPX m_door;
+  //private WPI_VictorSPX m_rightdoor;
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -63,13 +69,15 @@ public class Robot extends TimedRobot {
     m_leftMotor2 = new CANSparkMax(leftDeviceID2, MotorType.kBrushless);
     m_rightMotor2 = new CANSparkMax(rightDeviceID2, MotorType.kBrushless);
     m_winch = new CANSparkMax(5, MotorType.kBrushless);
-
+    m_shooter = new CANSparkMax(30, MotorType.kBrushless);
     m_intake = new WPI_TalonSRX(9);
     m_arm = new WPI_TalonSRX(10);
+    shooter_e = new CANEncoder(m_shooter);
 
-    m_leftdoor = new WPI_VictorSPX(6);
-    m_rightdoor = new WPI_VictorSPX(7);
-
+    m_door = new WPI_VictorSPX(7);
+    //m_rightdoor = new WPI_VictorSPX(7);
+    //m_feeder = new CANSparkMax(15, MotorType.kBrushless);
+    m_feeder = new WPI_TalonSRX(14);
     /**
      * The RestoreFactoryDefaults method can be used to reset the configuration
      * parameters in the SPARK MAX to their factory default state. If no argument is
@@ -80,15 +88,16 @@ public class Robot extends TimedRobot {
     m_leftMotor2.restoreFactoryDefaults();
     m_rightMotor2.restoreFactoryDefaults();
     m_winch.restoreFactoryDefaults();
-  
+   
     
-
     m_leftMotors = new SpeedControllerGroup(m_leftMotor1, m_leftMotor2);
     m_rightMotors = new SpeedControllerGroup(m_rightMotor1, m_rightMotor2);
 
     m_myRobot = new DifferentialDrive(m_leftMotors, m_rightMotors);
 
     m_leftStick = new XboxController(0);
+    m_rightStick = new XboxController(1);
+
   }
 
   /**
@@ -167,17 +176,23 @@ public class Robot extends TimedRobot {
     } else {
       m_arm.set(0);
     }
-
+    if (m_rightStick.getTriggerAxis(GenericHID.Hand.kLeft) >= .1) {
+      m_shooter.set(1);
+    } else if (m_rightStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1) {
+      m_shooter.set(-1);
+    } else {
+      m_shooter.set(0);
+    }
     if (m_leftStick.getXButton())
     {
-      //m_leftdoor.set(-.25);
+      m_door.set(-.25);
       //m_rightdoor.set(-.25);
     } else if (m_leftStick.getBButton())
     {
-      //m_leftdoor.set(.25);
+      m_door.set(.25);
       //m_rightdoor.set(.25);  
     } else {
-      //m_leftdoor.set(0);
+      m_door.set(0);
       //m_rightdoor.set(0);
     } 
 
@@ -189,6 +204,14 @@ public class Robot extends TimedRobot {
     } else {
       m_intake.set(0);
     }
+
+    if (m_rightStick.getYButton()) {
+      m_feeder.set(-.9);
+    } else {
+      m_feeder.set(0);
+    }
+    SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
+    SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
   }
 
   /** This function is called once when the robot is disabled. */
