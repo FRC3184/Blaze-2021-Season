@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
@@ -38,7 +39,7 @@ public class Robot extends TimedRobot {
   private XboxController m_rightStick;
   private SpeedControllerGroup m_leftMotors;
   private SpeedControllerGroup m_rightMotors;
-  private static final int leftDeviceID1 = 1;
+  private static final int leftDeviceID1 = 8;
   private static final int rightDeviceID1 = 3;
   private static final int leftDeviceID2 = 4;
   private static final int rightDeviceID2 = 2;
@@ -52,6 +53,7 @@ public class Robot extends TimedRobot {
   private WPI_TalonSRX m_feeder;
   private WPI_TalonSRX m_intake;
   private WPI_TalonSRX m_arm;
+  private WPI_TalonSRX m_turret;
   private WPI_VictorSPX m_door;
   //private WPI_VictorSPX m_rightdoor;
 
@@ -72,12 +74,13 @@ public class Robot extends TimedRobot {
     m_shooter = new CANSparkMax(30, MotorType.kBrushless);
     m_intake = new WPI_TalonSRX(9);
     m_arm = new WPI_TalonSRX(10);
+    m_turret = new WPI_TalonSRX(14);
     shooter_e = new CANEncoder(m_shooter);
 
     m_door = new WPI_VictorSPX(7);
     //m_rightdoor = new WPI_VictorSPX(7);
     //m_feeder = new CANSparkMax(15, MotorType.kBrushless);
-    m_feeder = new WPI_TalonSRX(14);
+    m_feeder = new WPI_TalonSRX(4);
     /**
      * The RestoreFactoryDefaults method can be used to reset the configuration
      * parameters in the SPARK MAX to their factory default state. If no argument is
@@ -152,16 +155,18 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
     double dx = m_leftStick.getX(GenericHID.Hand.kRight);
-    double dy = m_leftStick.getY(GenericHID.Hand.kRight);
+    double dy = m_leftStick.getY(GenericHID.Hand.kLeft);
+    dx= dx/2.0;
+    dy= dy/4.0;
     if (Math.abs(dx)<.1)
          dx = 0;
     if (Math.abs(dy)<.1)
          dy = 0;
 
-    m_myRobot.arcadeDrive(dy*-1, Math.pow(dx,3));
-    if (m_leftStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1) {
+    m_myRobot.arcadeDrive(dy*-1, Math.pow(dx,1));
+    if (m_leftStick.getBumper(GenericHID.Hand.kRight)) {
       m_winch.set(.5);  
-    } else if (m_leftStick.getTriggerAxis(GenericHID.Hand.kLeft) >= .1) {
+    } else if (m_leftStick.getBumper(GenericHID.Hand.kLeft)) {
       m_winch.set(-.5);  
       
     } else {
@@ -170,9 +175,9 @@ public class Robot extends TimedRobot {
 
     if (m_leftStick.getAButton())
     {
-      m_arm.set(-.4);
+      m_arm.set(-.5);
     } else if (m_leftStick.getYButton()){
-      m_arm.set(.4);
+      m_arm.set(.5);
     } else {
       m_arm.set(0);
     }
@@ -185,31 +190,42 @@ public class Robot extends TimedRobot {
     }
     if (m_leftStick.getXButton())
     {
-      m_door.set(-.25);
+      m_door.set(-1);
       //m_rightdoor.set(-.25);
     } else if (m_leftStick.getBButton())
     {
-      m_door.set(.25);
+      m_door.set(1);
       //m_rightdoor.set(.25);  
     } else {
       m_door.set(0);
       //m_rightdoor.set(0);
     } 
 
-    if (m_leftStick.getBumper(GenericHID.Hand.kRight))
+    if (m_leftStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1)
     {
       m_intake.set(.4);
-    } else if (m_leftStick.getBumper(GenericHID.Hand.kLeft)) {
+    } else if (m_leftStick.getTriggerAxis(GenericHID.Hand.kLeft) >= .1) {
       m_intake.set(-.4);
     } else {
-      m_intake.set(0);
+      m_intake.set(0); 
     }
 
     if (m_rightStick.getYButton()) {
       m_feeder.set(-.9);
+    } else if(m_rightStick.getXButton()){
+      m_feeder.set(.9);
     } else {
       m_feeder.set(0);
     }
+
+    if (m_rightStick.getAButton()){
+      m_turret.set(1);
+    } else if (m_rightStick.getBButton()){
+      m_turret.set(-1);
+    } else {
+      m_turret.set(0);
+    }
+
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
   }
