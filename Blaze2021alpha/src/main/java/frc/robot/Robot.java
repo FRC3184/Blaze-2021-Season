@@ -20,6 +20,8 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.GenericHID;
 
 /**
@@ -55,6 +57,9 @@ public class Robot extends TimedRobot {
   private WPI_TalonSRX m_arm;
   private WPI_TalonSRX m_turret;
   private WPI_VictorSPX m_door;
+  private DigitalInput Toplimitswitch;
+  private DigitalInput bottomlimitswitch;
+  
   //private WPI_VictorSPX m_rightdoor;
 
   /**
@@ -76,6 +81,8 @@ public class Robot extends TimedRobot {
     m_arm = new WPI_TalonSRX(10);
     m_turret = new WPI_TalonSRX(14);
     shooter_e = new CANEncoder(m_shooter);
+    Toplimitswitch = new DigitalInput(0);
+    bottomlimitswitch = new DigitalInput(1);
 
     m_door = new WPI_VictorSPX(7);
     //m_rightdoor = new WPI_VictorSPX(7);
@@ -191,15 +198,27 @@ public class Robot extends TimedRobot {
     if (m_leftStick.getXButton())
     {
       m_door.set(-1);
-      //m_rightdoor.set(-.25);
     } else if (m_leftStick.getBButton())
     {
-      m_door.set(1);
-      //m_rightdoor.set(.25);  
+      m_door.set(1);  
     } else {
       m_door.set(0);
-      //m_rightdoor.set(0);
     } 
+    
+    if (m_door.get() < 0){ 
+      if (!Toplimitswitch.get()){
+        m_door.set(0);
+      } else {
+        m_door.set(-1);
+      }
+    } else if (m_door.get() > 0){
+      if (!bottomlimitswitch.get()){
+        m_door.set(0);
+      } else {
+        m_door.set(1);
+      }
+    }
+    
 
     if (m_leftStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1)
     {
@@ -228,6 +247,7 @@ public class Robot extends TimedRobot {
 
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
+    SmartDashboard.putBoolean("Topswitch", Toplimitswitch.get());
   }
 
   /** This function is called once when the robot is disabled. */
