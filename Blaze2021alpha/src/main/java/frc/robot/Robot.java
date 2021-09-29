@@ -57,6 +57,7 @@ public class Robot extends TimedRobot {
   private WPI_TalonSRX m_arm;
   private WPI_TalonSRX m_turret;
   private WPI_VictorSPX m_door;
+  private WPI_VictorSPX m_patrick;
   private DigitalInput Toplimitswitch;
   private DigitalInput bottomlimitswitch;
   
@@ -83,10 +84,8 @@ public class Robot extends TimedRobot {
     shooter_e = new CANEncoder(m_shooter);
     Toplimitswitch = new DigitalInput(0);
     bottomlimitswitch = new DigitalInput(1);
-
     m_door = new WPI_VictorSPX(7);
-    //m_rightdoor = new WPI_VictorSPX(7);
-    //m_feeder = new CANSparkMax(15, MotorType.kBrushless);
+    m_patrick = new WPI_VictorSPX(6);
     m_feeder = new WPI_TalonSRX(4);
     /**
      * The RestoreFactoryDefaults method can be used to reset the configuration
@@ -238,11 +237,18 @@ public class Robot extends TimedRobot {
     }
 
     if (m_rightStick.getAButton()){
-      m_turret.set(1);
+      m_turret.set(.4);
     } else if (m_rightStick.getBButton()){
-      m_turret.set(-1);
+      m_turret.set(-.4);
     } else {
       m_turret.set(0);
+    }
+    if (m_rightStick.getBumper(GenericHID.Hand.kRight)) {
+      m_patrick.set(1);
+    } else if (m_rightStick.getBumper(GenericHID.Hand.kLeft)){
+      m_patrick.set(-1);
+    } else {
+      m_patrick.set(0);
     }
 
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
