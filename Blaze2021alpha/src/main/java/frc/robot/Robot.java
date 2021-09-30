@@ -14,13 +14,18 @@ import edu.wpi.first.wpilibj.SpeedControllerGroup;
 
 //import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.GenericHID.Hand;
 
 import com.revrobotics.CANEncoder;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+
+
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.GenericHID;
 
@@ -60,6 +65,12 @@ public class Robot extends TimedRobot {
   private WPI_VictorSPX m_patrick;
   private DigitalInput Toplimitswitch;
   private DigitalInput bottomlimitswitch;
+  NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
+  NetworkTableEntry tx = table.getEntry("tx");
+  NetworkTableEntry ty = table.getEntry("ty");
+  NetworkTableEntry ta = table.getEntry("ta");
+  NetworkTableEntry Lights = table.getEntry("ledMode");
+  
   
   //private WPI_VictorSPX m_rightdoor;
 
@@ -87,6 +98,7 @@ public class Robot extends TimedRobot {
     m_door = new WPI_VictorSPX(7);
     m_patrick = new WPI_VictorSPX(6);
     m_feeder = new WPI_TalonSRX(4);
+    
     /**
      * The RestoreFactoryDefaults method can be used to reset the configuration
      * parameters in the SPARK MAX to their factory default state. If no argument is
@@ -250,10 +262,30 @@ public class Robot extends TimedRobot {
     } else {
       m_patrick.set(0);
     }
-
-    SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
+    if (m_rightStick.getStickButton(Hand.kLeft)) {
+      Lights.setNumber(3);
+    } else {
+      Lights.setNumber(1);
+    }
+    double x = tx.getDouble(0.0);
+    double y = ty.getDouble(0.0);
+    double area = ta.getDouble(0.0);
+    double deadzone = 2.5;
+    double dr;
+    if (m_rightStick.getStickButton(Hand.kRight)){
+      dr= x;
+      if (Math.abs(dr) < deadzone){
+        dr=0;
+      } 
+      m_turret.set(-dr*.015);
+    }
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
     SmartDashboard.putBoolean("Topswitch", Toplimitswitch.get());
+    SmartDashboard.putNumber("LimelightX", x);
+    SmartDashboard.putNumber("LimelightY", y);
+    SmartDashboard.putNumber("LimelightArea", area);
+    
+    
   }
 
   /** This function is called once when the robot is disabled. */
