@@ -65,12 +65,15 @@ public class Robot extends TimedRobot {
   private WPI_VictorSPX m_patrick;
   private DigitalInput Toplimitswitch;
   private DigitalInput bottomlimitswitch;
+  private DigitalInput Leftlimitswitch;
+  private DigitalInput Rightlimitswitch;
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
   NetworkTableEntry tx = table.getEntry("tx");
   NetworkTableEntry ty = table.getEntry("ty");
   NetworkTableEntry ta = table.getEntry("ta");
   NetworkTableEntry Lights = table.getEntry("ledMode");
-  
+  NetworkTableEntry tv = table.getEntry("tv");
+  double rotate = .2;
   
   //private WPI_VictorSPX m_rightdoor;
 
@@ -98,7 +101,8 @@ public class Robot extends TimedRobot {
     m_door = new WPI_VictorSPX(7);
     m_patrick = new WPI_VictorSPX(6);
     m_feeder = new WPI_TalonSRX(4);
-    
+    Leftlimitswitch = new DigitalInput(2);
+    Rightlimitswitch = new DigitalInput(3);
     /**
      * The RestoreFactoryDefaults method can be used to reset the configuration
      * parameters in the SPARK MAX to their factory default state. If no argument is
@@ -118,7 +122,7 @@ public class Robot extends TimedRobot {
 
     m_leftStick = new XboxController(0);
     m_rightStick = new XboxController(1);
-
+    
   }
 
   /**
@@ -269,16 +273,39 @@ public class Robot extends TimedRobot {
     }
     double x = tx.getDouble(0.0);
     double y = ty.getDouble(0.0);
+    double Target = tv.getDouble(0.0);
     double area = ta.getDouble(0.0);
     double deadzone = 2.5;
     double dr;
-    if (m_rightStick.getStickButton(Hand.kRight)){
+    
+    /*if (m_rightStick.getStickButton(Hand.kRight)){
       dr= x;
       if (Math.abs(dr) < deadzone){
         dr=0;
       } 
       m_turret.set(-dr*.015);
+    }*/
+    
+    if (m_rightStick.getStickButton(Hand.kRight)){
+      if (Target != 1){
+          m_turret.set(rotate);
+          if (!Leftlimitswitch.get() || !Rightlimitswitch.get() ){
+            rotate = rotate*-1;
+          }
+      } else if (Target > 0){
+        dr = x;
+        if (Math.abs(dr) < deadzone){
+          dr=0;
+      }
+      m_turret.set(-dr*.015);
+      if (!Rightlimitswitch.get() && m_turret.get() < 0 || !Leftlimitswitch.get() && m_turret.get() > 0){
+        m_turret.set(0);
+      }
     }
+      }
+      
+    
+  
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
     SmartDashboard.putBoolean("Topswitch", Toplimitswitch.get());
     SmartDashboard.putNumber("LimelightX", x);
