@@ -1,0 +1,31 @@
+
+// Limit switches
+if (leftLimit is pressed && speed is left direction)
+{
+    set speed to 0
+}
+else if (rightLimit is pressed && speed right direction)
+{
+    set speed to 0
+}
+
+// Target seeking algorithm
+if (button is pressed)
+{
+    if (target is not in frame)
+    {
+        run motor
+        if (LeftLimit is pressed)
+        {
+            set speed to right direction
+        }
+        else if (RightLimit is pressed)
+        {
+            set speed to left direction
+        }
+    }
+    else
+    {
+        run that centering algorithm
+    }
+}
