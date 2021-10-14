@@ -6,6 +6,7 @@ package frc.robot;
 
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -57,6 +58,10 @@ public class Robot extends TimedRobot {
   private CANSparkMax m_winch;
   private CANSparkMax m_shooter;
   private CANEncoder shooter_e;
+  private CANEncoder leftEncoder1;
+  private CANEncoder leftEncoder2;
+  private CANEncoder rightEncoder1;
+  private CANEncoder rightEncoder2;
   private WPI_TalonSRX m_feeder;
   private WPI_TalonSRX m_intake;
   private WPI_TalonSRX m_arm;
@@ -67,6 +72,7 @@ public class Robot extends TimedRobot {
   private DigitalInput bottomlimitswitch;
   private DigitalInput Leftlimitswitch;
   private DigitalInput Rightlimitswitch;
+  private static int AUTONOMOUS_STATE = 0;
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
   NetworkTableEntry tx = table.getEntry("tx");
   NetworkTableEntry ty = table.getEntry("ty");
@@ -74,6 +80,11 @@ public class Robot extends TimedRobot {
   NetworkTableEntry Lights = table.getEntry("ledMode");
   NetworkTableEntry tv = table.getEntry("tv");
   double rotate = .2;
+  double starttime;
+  double Ft2Ticks = 2607.6;
+  
+    double deadzone = 2.5;
+    double dr;
   
   //private WPI_VictorSPX m_rightdoor;
 
@@ -96,6 +107,11 @@ public class Robot extends TimedRobot {
     m_arm = new WPI_TalonSRX(10);
     m_turret = new WPI_TalonSRX(14);
     shooter_e = new CANEncoder(m_shooter);
+    leftEncoder1 = new CANEncoder(m_leftMotor1);
+    leftEncoder2 = new CANEncoder(m_leftMotor2);
+    rightEncoder1 = new CANEncoder(m_rightMotor1); // inverted
+    rightEncoder2 = new CANEncoder(m_rightMotor2); // inverted
+    // rightEncoder2.setInverted(true);
     Toplimitswitch = new DigitalInput(0);
     bottomlimitswitch = new DigitalInput(1);
     m_door = new WPI_VictorSPX(7);
@@ -150,14 +166,36 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
+    System.out.printf("RE2 Position (init 1): %s\n", rightEncoder2.getPosition());
+    Lights.setNumber(3);
     m_autoSelected = m_chooser.getSelected();
     // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
     System.out.println("Auto selected: " + m_autoSelected);
+    starttime = Timer.getFPGATimestamp();
+    leftEncoder1.setPosition(0);
+    leftEncoder2.setPosition(0);
+    rightEncoder1.setPosition(0);
+    rightEncoder2.setPosition(0);
+    AUTONOMOUS_STATE = 0;
+    System.out.printf("RE2 Position (init 2): %s\n", rightEncoder2.getPosition());
   }
+
+  /**
+   * 0 = move 5 feet
+   * 1 = tracking
+   * 2 = shooting
+   */
+  
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
+    SmartDashboard.putNumber("autostep", AUTONOMOUS_STATE);
+    
+    double x = tx.getDouble(0.0);
+    double y = ty.getDouble(0.0);
+    double Target = tv.getDouble(0.0);
+    double area = ta.getDouble(0.0);
     switch (m_autoSelected) {
       case kCustomAuto:
         // Put custom auto code here
@@ -165,7 +203,86 @@ public class Robot extends TimedRobot {
       case kDefaultAuto:
       default:
         // Put default auto code here
-        break;
+        
+
+        // do stuff depending on the state of the autonomous
+        // encoder controls each side of motors to hopefully reduce drifting
+        // 30 is roughly 5 feet? but drifts to 33 when ran.
+        switch (AUTONOMOUS_STATE) {
+          case 0:
+            if (rightEncoder2.getPosition() > -30) {
+              m_rightMotor1.set(-.25);
+              m_rightMotor2.set(-.25);
+            } else {
+              m_rightMotor1.set(0);
+              m_rightMotor2.set(0);
+            }
+    
+            if (leftEncoder2.getPosition() < 30) {
+              m_leftMotor1.set(.25);
+              m_leftMotor2.set(.25);
+            } else {
+              m_leftMotor1.set(0);
+              m_leftMotor2.set(0);
+            }
+    
+            // When the robot's moved roughly 5 feet away.
+            if (leftEncoder2.getPosition() > 30 && rightEncoder2.getPosition() < -30) {
+              AUTONOMOUS_STATE = 1; // start tracking
+            }
+          break;
+
+          // aim the turret using BallUtility
+          case 1: 
+            //double target = BallUtility.aimTurret(tx, ty, tv, ta, Leftlimitswitch, Rightlimitswitch, m_turret);
+            if (!Leftlimitswitch.get() && m_turret.get() > 0){
+              m_turret.set(0);
+          } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
+              m_turret.set(0);
+          }
+  
+          if (Target != 1){
+              m_turret.set(rotate);
+              if (!Leftlimitswitch.get()){
+                  rotate = -.1;
+              } else if (!Leftlimitswitch.get()){
+                  rotate = .1;
+              }
+          } else if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
+              dr = x;
+              if (Math.abs(dr) < deadzone){
+                  dr=0;
+              }
+              
+              m_turret.set(-dr*.015);
+          }
+            // this means the turret should be aimed (hopefully?)
+            if (Math.abs(dr) < deadzone) {
+              AUTONOMOUS_STATE = 2; // shoot ball
+            }
+            break;
+
+          // shoot balls. turret should already be aimed (I think?).
+          case 2:
+          double time = Timer.getFPGATimestamp();
+          SmartDashboard.putNumber("time", time - starttime);
+          if (time - starttime < 10){
+            m_shooter.set(1);
+            
+          } else {
+            m_shooter.set(0);
+          }
+          if (time - starttime < 10 && time - starttime > 3){
+          m_feeder.set(-.9);
+            m_patrick.set(-1);
+          } else {
+            m_patrick.set(0);
+            m_feeder.set(0);
+          }
+            break;
+        }
+
+      break;     
     }
   }
 
@@ -185,24 +302,30 @@ public class Robot extends TimedRobot {
     if (Math.abs(dy)<.1)
          dy = 0;
 
-    m_myRobot.arcadeDrive(dy*-1, Math.pow(dx,1));
+    // switch (m_rightStick.getPOV()) {
+    //   // Right controller DPAD Up
+    //   case DPadPovPositions.UP:
+    //     break;
+    // }
+
+    m_myRobot.arcadeDrive(dy*-2.5, Math.pow(dx,1));
     if (m_leftStick.getBumper(GenericHID.Hand.kRight)) {
       m_winch.set(.5);  
     } else if (m_leftStick.getBumper(GenericHID.Hand.kLeft)) {
       m_winch.set(-.5);  
-      
     } else {
       m_winch.set(0);
     }
 
-    if (m_leftStick.getAButton())
+    if (m_rightStick.getAButton())
     {
       m_arm.set(-.5);
-    } else if (m_leftStick.getYButton()){
+    } else if (m_rightStick.getYButton()){
       m_arm.set(.5);
     } else {
       m_arm.set(0);
     }
+    
     if (m_rightStick.getTriggerAxis(GenericHID.Hand.kLeft) >= .1) {
       m_shooter.set(1);
     } else if (m_rightStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1) {
@@ -210,11 +333,11 @@ public class Robot extends TimedRobot {
     } else {
       m_shooter.set(0);
     }
-    if (m_leftStick.getXButton())
+
+    if (m_rightStick.getXButton())
     {
       m_door.set(-1);
-    } else if (m_leftStick.getBButton())
-    {
+    } else if (m_rightStick.getBButton()){
       m_door.set(1);  
     } else {
       m_door.set(0);
@@ -234,7 +357,6 @@ public class Robot extends TimedRobot {
       }
     }
     
-
     if (m_leftStick.getTriggerAxis(GenericHID.Hand.kRight) >= .1)
     {
       m_intake.set(.4);
@@ -244,28 +366,30 @@ public class Robot extends TimedRobot {
       m_intake.set(0); 
     }
 
-    if (m_rightStick.getYButton()) {
+    if (m_rightStick.getStickButton(Hand.kRight)) {
       m_feeder.set(-.9);
-    } else if(m_rightStick.getXButton()){
-      m_feeder.set(.9);
     } else {
       m_feeder.set(0);
     }
 
-    if (m_rightStick.getAButton()){
+    if (m_rightStick.getBumper(Hand.kLeft)){
       m_turret.set(.4);
-    } else if (m_rightStick.getBButton()){
+    } else if (m_rightStick.getBumper(Hand.kRight)){
       m_turret.set(-.4);
     } else {
       m_turret.set(0);
     }
-    if (m_rightStick.getBumper(GenericHID.Hand.kRight)) {
+
+    /*if (m_rightStick.getBumper(GenericHID.Hand.kRight)) {
       m_patrick.set(1);
-    } else if (m_rightStick.getBumper(GenericHID.Hand.kLeft)){
+    }*/
+
+    if (m_rightStick.getStickButton(Hand.kRight)){
       m_patrick.set(-1);
     } else {
       m_patrick.set(0);
     }
+
     if (m_rightStick.getStickButton(Hand.kLeft)) {
       Lights.setNumber(3);
     } else {
@@ -275,9 +399,6 @@ public class Robot extends TimedRobot {
     double y = ty.getDouble(0.0);
     double Target = tv.getDouble(0.0);
     double area = ta.getDouble(0.0);
-    double deadzone = 2.5;
-    double dr;
-    
     /*if (m_rightStick.getStickButton(Hand.kRight)){
       dr= x;
       if (Math.abs(dr) < deadzone){
@@ -285,32 +406,38 @@ public class Robot extends TimedRobot {
       } 
       m_turret.set(-dr*.015);
     }*/
-    
-    if (m_rightStick.getStickButton(Hand.kRight)){
+    if (!Leftlimitswitch.get() && m_turret.get() > 0){
+      m_turret.set(0);
+    } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
+      m_turret.set(0);
+    }
+
+    if (m_rightStick.getStickButton(Hand.kLeft)){
       if (Target != 1){
           m_turret.set(rotate);
-          if (!Leftlimitswitch.get() || !Rightlimitswitch.get() ){
-            rotate = rotate*-1;
+          if (!Leftlimitswitch.get()){
+            rotate = -.2;
+          } else if (!Rightlimitswitch.get()){
+            rotate = .2;
           }
-      } else if (Target > 0){
+      } else if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
         dr = x;
         if (Math.abs(dr) < deadzone){
           dr=0;
+        }
+        
+        m_turret.set(-dr*.015);
       }
-      m_turret.set(-dr*.015);
-      if (!Rightlimitswitch.get() && m_turret.get() < 0 || !Leftlimitswitch.get() && m_turret.get() > 0){
-        m_turret.set(0);
-      }
-    }
-      }
-      
-    
-  
+    } 
+
     SmartDashboard.putNumber("Speed", shooter_e.getVelocity());
     SmartDashboard.putBoolean("Topswitch", Toplimitswitch.get());
     SmartDashboard.putNumber("LimelightX", x);
     SmartDashboard.putNumber("LimelightY", y);
     SmartDashboard.putNumber("LimelightArea", area);
+    SmartDashboard.putNumber("Right POV", m_rightStick.getPOV());
+    SmartDashboard.putNumber("Left POV", m_leftStick.getPOV());
+    SmartDashboard.putNumber("shooter", shooter_e.getPosition());
     
     
   }
