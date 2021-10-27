@@ -73,6 +73,9 @@ public class Robot extends TimedRobot {
   private DigitalInput Leftlimitswitch;
   private DigitalInput Rightlimitswitch;
   private static int AUTONOMOUS_STATE = 0;
+
+  Autonomous auto = new Autonomous();
+
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
   NetworkTableEntry tx = table.getEntry("tx");
   NetworkTableEntry ty = table.getEntry("ty");
@@ -129,8 +132,8 @@ public class Robot extends TimedRobot {
     m_leftMotor2.restoreFactoryDefaults();
     m_rightMotor2.restoreFactoryDefaults();
     m_winch.restoreFactoryDefaults();
-   
     
+   
     m_leftMotors = new SpeedControllerGroup(m_leftMotor1, m_leftMotor2);
     m_rightMotors = new SpeedControllerGroup(m_rightMotor1, m_rightMotor2);
 
@@ -138,7 +141,7 @@ public class Robot extends TimedRobot {
 
     m_leftStick = new XboxController(0);
     m_rightStick = new XboxController(1);
-    
+   
   }
 
   /**
@@ -152,6 +155,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+   
   }
 
   /**
@@ -166,8 +170,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    System.out.printf("RE2 Position (init 1): %s\n", rightEncoder2.getPosition());
-    Lights.setNumber(3);
+    Lights.setNumber(1);
     m_autoSelected = m_chooser.getSelected();
     // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
     System.out.println("Auto selected: " + m_autoSelected);
@@ -177,7 +180,7 @@ public class Robot extends TimedRobot {
     rightEncoder1.setPosition(0);
     rightEncoder2.setPosition(0);
     AUTONOMOUS_STATE = 0;
-    System.out.printf("RE2 Position (init 2): %s\n", rightEncoder2.getPosition());
+    auto.resetState();
   }
 
   /**
@@ -196,21 +199,22 @@ public class Robot extends TimedRobot {
     double y = ty.getDouble(0.0);
     double Target = tv.getDouble(0.0);
     double area = ta.getDouble(0.0);
+
     switch (m_autoSelected) {
       case kCustomAuto:
         // Put custom auto code here
+        // auto.runAuto();
         break;
       case kDefaultAuto:
       default:
         // Put default auto code here
         
-
         // do stuff depending on the state of the autonomous
         // encoder controls each side of motors to hopefully reduce drifting
         // 30 is roughly 5 feet? but drifts to 33 when ran.
         switch (AUTONOMOUS_STATE) {
           case 0:
-            if (rightEncoder2.getPosition() > -30) {
+            if (rightEncoder2.getPosition() > -12) {
               m_rightMotor1.set(-.25);
               m_rightMotor2.set(-.25);
             } else {
@@ -218,7 +222,7 @@ public class Robot extends TimedRobot {
               m_rightMotor2.set(0);
             }
     
-            if (leftEncoder2.getPosition() < 30) {
+            if (leftEncoder2.getPosition() < 12) {
               m_leftMotor1.set(.25);
               m_leftMotor2.set(.25);
             } else {
@@ -227,58 +231,59 @@ public class Robot extends TimedRobot {
             }
     
             // When the robot's moved roughly 5 feet away.
-            if (leftEncoder2.getPosition() > 30 && rightEncoder2.getPosition() < -30) {
+            if (leftEncoder2.getPosition() > 12 && rightEncoder2.getPosition() < -12) {
               AUTONOMOUS_STATE = 1; // start tracking
+              System.out.println("AUTO-STATE: 1; start tracking");
             }
           break;
 
           // aim the turret using BallUtility
           case 1: 
-            //double target = BallUtility.aimTurret(tx, ty, tv, ta, Leftlimitswitch, Rightlimitswitch, m_turret);
+            // double target = BallUtility.aimTurret(tx, ty, tv, ta, Leftlimitswitch, Rightlimitswitch, m_turret, Lights);
+            Lights.setNumber(3);
             if (!Leftlimitswitch.get() && m_turret.get() > 0){
               m_turret.set(0);
-          } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
+            } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
               m_turret.set(0);
-          }
+            }
   
-          if (Target != 1){
-              m_turret.set(rotate);
-              if (!Leftlimitswitch.get()){
-                  rotate = -.1;
-              } else if (!Leftlimitswitch.get()){
-                  rotate = .1;
-              }
-          } else if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
+            if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
               dr = x;
               if (Math.abs(dr) < deadzone){
-                  dr=0;
+                dr=0;
               }
               
               m_turret.set(-dr*.015);
-          }
+            }
+            
             // this means the turret should be aimed (hopefully?)
             if (Math.abs(dr) < deadzone) {
               AUTONOMOUS_STATE = 2; // shoot ball
+              System.out.println("AUTO-STATE: 2; shooting ball(s)");
             }
             break;
 
           // shoot balls. turret should already be aimed (I think?).
           case 2:
-          double time = Timer.getFPGATimestamp();
-          SmartDashboard.putNumber("time", time - starttime);
-          if (time - starttime < 10){
-            m_shooter.set(1);
-            
-          } else {
-            m_shooter.set(0);
-          }
-          if (time - starttime < 10 && time - starttime > 3){
-          m_feeder.set(-.9);
-            m_patrick.set(-1);
-          } else {
-            m_patrick.set(0);
-            m_feeder.set(0);
-          }
+            Lights.setNumber(1);
+            double time = Timer.getFPGATimestamp();
+            SmartDashboard.putNumber("time", time - starttime);
+
+            if (time - starttime < 10){
+              m_shooter.set(1);
+              
+            } else {
+              m_shooter.set(0);
+            }
+
+            if (time - starttime < 10 && time - starttime > 3){
+              m_feeder.set(-.9);
+              m_patrick.set(-1);
+            } else {
+              m_patrick.set(0);
+              m_feeder.set(0);
+            }
+
             break;
         }
 
@@ -288,8 +293,9 @@ public class Robot extends TimedRobot {
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
-
+  public void teleopInit() {
+  }
+  
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
@@ -310,9 +316,9 @@ public class Robot extends TimedRobot {
 
     m_myRobot.arcadeDrive(dy*-2.5, Math.pow(dx,1));
     if (m_leftStick.getBumper(GenericHID.Hand.kRight)) {
-      m_winch.set(.5);  
+      m_winch.set(1);  
     } else if (m_leftStick.getBumper(GenericHID.Hand.kLeft)) {
-      m_winch.set(-.5);  
+      m_winch.set(-1);  
     } else {
       m_winch.set(0);
     }
