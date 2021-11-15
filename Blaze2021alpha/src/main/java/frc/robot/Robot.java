@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 
 //import edu.wpi.first.wpilibj.Joystick;
@@ -73,6 +74,7 @@ public class Robot extends TimedRobot {
   private DigitalInput Leftlimitswitch;
   private DigitalInput Rightlimitswitch;
   private static int AUTONOMOUS_STATE = 0;
+  private static int autoState = 0;
 
   Autonomous auto = new Autonomous();
 
@@ -85,9 +87,12 @@ public class Robot extends TimedRobot {
   double rotate = .2;
   double starttime;
   double Ft2Ticks = 2607.6;
-  
-    double deadzone = 2.5;
+  double CurrentTime;
+  double statictime;
+  double agitate = .5;
+    double deadzone = 1.5;
     double dr;
+    double waittime =.55;
   
   //private WPI_VictorSPX m_rightdoor;
 
@@ -194,7 +199,9 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     SmartDashboard.putNumber("autostep", AUTONOMOUS_STATE);
-    
+    SmartDashboard.putNumber("autoState", autoState);
+    SmartDashboard.putNumber("distance", leftEncoder1.getPosition());
+    double time = Timer.getFPGATimestamp();
     double x = tx.getDouble(0.0);
     double y = ty.getDouble(0.0);
     double Target = tv.getDouble(0.0);
@@ -202,7 +209,207 @@ public class Robot extends TimedRobot {
 
     switch (m_autoSelected) {
       case kCustomAuto:
+      System.out.println("inside kCustomAuto switch.");
         // Put custom auto code here
+        switch (autoState) {
+          case 0:
+          System.out.println("case 0 - inside autoState switch.");
+          // aim
+          Lights.setNumber(3);
+            if (!Leftlimitswitch.get() && m_turret.get() > 0){
+              m_turret.set(0);
+            } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
+              m_turret.set(0);
+            }
+  
+            if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
+              dr = x;
+              if (Math.abs(dr) < deadzone){
+                dr=0;
+              }
+              
+              m_turret.set(-dr*.015);
+            }
+            
+            // this means the turret should be aimed (hopefully?)
+            if (Math.abs(dr) < deadzone) {
+              setAutoState(1);
+              // autoState = 1; // shoot ball
+            }
+          break;
+
+
+
+          case 1:
+          System.out.println("case 1 - inside autoState switch.");
+
+          Lights.setNumber(1);
+          
+          SmartDashboard.putNumber("time", time - starttime);
+
+          if (time - starttime < 4){
+            m_shooter.set(1);
+            
+          } else {
+            m_shooter.set(0);
+          }
+
+          if (time - starttime < 4 && time - starttime > .5){
+            m_feeder.set(-.9);
+            m_patrick.set(-1);
+          } else if( time - starttime > 4) {
+            starttime = Timer.getFPGATimestamp();
+            setAutoState(2);
+            // autoState = 2;
+          } else {
+            m_patrick.set(0);
+            m_feeder.set(0);
+          }
+
+          break;
+          case 2:
+          System.out.println("case 2 - inside autoState switch.");
+
+          //arm down
+          if ( time - starttime < 1){
+            m_arm.set(-.5);
+          } else if ( time - starttime > 1){
+            
+            rightEncoder2.setPosition(0);
+            rightEncoder1.setPosition(0);
+            leftEncoder2.setPosition(0);
+            leftEncoder1.setPosition(0);
+            starttime = Timer.getFPGATimestamp();
+            setAutoState(3);
+            // autoState = 3;
+          }
+          break;
+          case 3:
+          System.out.println("case 3 - inside autoState switch.");
+
+          //pick up balls
+          if (rightEncoder2.getPosition() > -100) {
+            m_rightMotor1.set(-.25);
+            m_rightMotor2.set(-.25);
+            m_intake.set(.4);
+          } else {
+            m_rightMotor1.set(0);
+            m_rightMotor2.set(0);
+            m_intake.set(0);
+          }
+  
+          if (leftEncoder2.getPosition() < 100) {
+            m_leftMotor1.set(.25);
+            m_leftMotor2.set(.25);
+          } else {
+            m_leftMotor1.set(0);
+            m_leftMotor2.set(0);
+          } 
+          if (leftEncoder1.getPosition() > 100){
+            rightEncoder2.setPosition(0);
+            rightEncoder1.setPosition(0);
+            leftEncoder2.setPosition(0);
+            leftEncoder1.setPosition(0);
+            m_intake.set(0);
+            m_arm.set(0);
+            setAutoState(4);
+            // autoState = 4;
+          }
+          break;
+          case 4:
+          System.out.println("case 4 - inside autoState switch.");
+          //drive back
+          if (rightEncoder2.getPosition() < 100) {
+            m_rightMotor1.set(.25);
+            m_rightMotor2.set(.25);
+          } else {
+            m_rightMotor1.set(0);
+            m_rightMotor2.set(0);
+          }
+  
+          if (leftEncoder2.getPosition() > -100) {
+            m_leftMotor1.set(-.25);
+            m_leftMotor2.set(-.25);
+          } else {
+            m_leftMotor1.set(0);
+            m_leftMotor2.set(0);
+          } 
+          if (leftEncoder1.getPosition() < -100){
+            starttime = Timer.getFPGATimestamp();
+            rightEncoder2.setPosition(0);
+            rightEncoder1.setPosition(0);
+            leftEncoder2.setPosition(0);
+            leftEncoder1.setPosition(0);
+            // autoState = 5;
+            setAutoState(5);
+          }
+          break; 
+          case 5:
+          System.out.println("case 5 - inside autoState switch.");
+
+          //arm up
+          if ( time - starttime < 1){
+            m_arm.set(.5);
+            m_door.set(.5);
+          } else if ( time - starttime > 1){
+            rightEncoder2.setPosition(0);
+            rightEncoder1.setPosition(0);
+            leftEncoder2.setPosition(0);
+            leftEncoder1.setPosition(0);
+            starttime = Timer.getFPGATimestamp();
+            m_door.set(0);
+            m_arm.set(0);
+            // autoState = 6;
+            setAutoState(6);
+          }
+          break;
+          case 6:
+          System.out.println("case 6 - inside autoState switch.");
+
+          //aim
+          Lights.setNumber(3);
+            if (!Leftlimitswitch.get() && m_turret.get() > 0){
+              m_turret.set(0);
+            } else if (!Rightlimitswitch.get() && m_turret.get() < 0){
+              m_turret.set(0);
+            }
+  
+            if (Target > 0 && Leftlimitswitch.get() && Rightlimitswitch.get()){
+              dr = x;
+              if (Math.abs(dr) < deadzone){
+                dr=0;
+              }
+              
+              m_turret.set(-dr*.015);
+            }
+            
+            if (Math.abs(dr) < deadzone) {
+              starttime = Timer.getFPGATimestamp();
+              // autoState = 7;
+              setAutoState(7); // shoot ball
+            }
+          break;
+          case 7:
+          System.out.println("case 7 - inside autoState switch.");
+          //shoot
+          Lights.setNumber(1);
+        
+
+          if (time - starttime < 4){
+            m_shooter.set(1); 
+          } else {
+            m_shooter.set(0);
+          }
+
+          if (time - starttime < 4 && time - starttime > .5){
+            m_feeder.set(-.9);
+            m_patrick.set(-1);
+          }  else {
+            m_patrick.set(0);
+            m_feeder.set(0);
+          }
+          break;
+        }
         // auto.runAuto();
         break;
       case kDefaultAuto:
@@ -266,7 +473,7 @@ public class Robot extends TimedRobot {
           // shoot balls. turret should already be aimed (I think?).
           case 2:
             Lights.setNumber(1);
-            double time = Timer.getFPGATimestamp();
+            
             SmartDashboard.putNumber("time", time - starttime);
 
             if (time - starttime < 10){
@@ -294,11 +501,13 @@ public class Robot extends TimedRobot {
   /** This function is called once when teleop is enabled. */
   @Override
   public void teleopInit() {
+    statictime = Timer.getFPGATimestamp();
   }
   
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
+    CurrentTime= Timer.getFPGATimestamp();
     double dx = m_leftStick.getX(GenericHID.Hand.kRight);
     double dy = m_leftStick.getY(GenericHID.Hand.kLeft);
     dx= dx/2.0;
@@ -328,9 +537,22 @@ public class Robot extends TimedRobot {
       m_arm.set(-.5);
     } else if (m_rightStick.getYButton()){
       m_arm.set(.5);
+    } else if (m_rightStick.getStartButton()){
+      if (CurrentTime - statictime > waittime){
+        statictime = Timer.getFPGATimestamp();
+        agitate = agitate*-1;
+      } else if (CurrentTime - statictime < waittime){
+        m_arm.set(agitate);
+          if (agitate > 0){
+            waittime = .5;
+          } else {
+            waittime = .2;
+          }
+      }
     } else {
       m_arm.set(0);
     }
+    
     
     if (m_rightStick.getTriggerAxis(GenericHID.Hand.kLeft) >= .1) {
       m_shooter.set(1);
@@ -339,7 +561,7 @@ public class Robot extends TimedRobot {
     } else {
       m_shooter.set(0);
     }
-
+    
     if (m_rightStick.getXButton())
     {
       m_door.set(-1);
@@ -348,7 +570,7 @@ public class Robot extends TimedRobot {
     } else {
       m_door.set(0);
     } 
-    
+
     if (m_door.get() < 0){ 
       if (!Toplimitswitch.get()){
         m_door.set(0);
@@ -385,6 +607,7 @@ public class Robot extends TimedRobot {
     } else {
       m_turret.set(0);
     }
+    
 
     /*if (m_rightStick.getBumper(GenericHID.Hand.kRight)) {
       m_patrick.set(1);
@@ -446,6 +669,11 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("shooter", shooter_e.getPosition());
     
     
+  }
+
+  public static void setAutoState(int stateVal) {
+    System.out.println("autoState changing from " + autoState + " to " + stateVal);
+    autoState = stateVal;
   }
 
   /** This function is called once when the robot is disabled. */
