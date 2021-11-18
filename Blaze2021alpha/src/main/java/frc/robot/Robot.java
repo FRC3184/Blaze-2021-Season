@@ -213,10 +213,10 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void autonomousPeriodic() {
+        double time = Timer.getFPGATimestamp();
         SmartDashboard.putNumber("autostep", AUTONOMOUS_STATE);
         SmartDashboard.putNumber("autoState", autoState);
         SmartDashboard.putNumber("distance", leftEncoder1.getPosition());
-        double time = Timer.getFPGATimestamp();
         double xTargetCenterOffset = xOffset.getDouble(0.0);
         double yTargetCenterOffset = yOffset.getDouble(0.0);
         double target = binaryHasTarget.getDouble(0.0);
@@ -230,7 +230,7 @@ public class Robot extends TimedRobot {
                     case 0:
                         resetEncoder();
                         resetTimer();
-                        aim(xTargetCenterOffset, binaryHasTarget);
+                        aim(xTargetCenterOffset, target);
                     case 1:
                         resetEncoder();
                         resetTimer();
@@ -297,7 +297,7 @@ public class Robot extends TimedRobot {
                     // aim the turret using BallUtility
                     case 1:
                         // double target = BallUtility.aimTurret(tx, ty, tv, ta, Leftlimitswitch, Rightlimitswitch, m_turret, Lights);
-                        aim(x_target_center_offset, target);
+                        aim(xTargetCenterOffset, target);
 
                         // this means the turret should be aimed (hopefully?)
                         if (Math.abs(dr) < deadzone) {
@@ -522,7 +522,7 @@ public class Robot extends TimedRobot {
         }
 
         if (binaryIstarget > 0 && leftLimitSwitch.get() && rightLimitSwitch.get()) {
-            dr = x;
+            dr = xOffset;
             if (Math.abs(dr) < deadzone) {
                 dr = 0;
             }
@@ -531,6 +531,8 @@ public class Robot extends TimedRobot {
     }
 
     private void shoot() {
+      double time = Timer.getFPGATimestamp();
+
         limelightLights.setNumber(1);
         SmartDashboard.putNumber("time", time - startTime);
 
@@ -553,6 +555,8 @@ public class Robot extends TimedRobot {
     }
 
     private void lowerArm() {
+        double time = Timer.getFPGATimestamp();
+
         //arm down
         if (time - startTime < 1) {
             m_arm.set(-.5);
@@ -569,6 +573,8 @@ public class Robot extends TimedRobot {
     }
 
     private void raiseArm() {
+        double time = Timer.getFPGATimestamp();
+
         //arm up
         if (time - startTime < 1) {
             m_arm.set(.5);
@@ -591,7 +597,7 @@ public class Robot extends TimedRobot {
     }
 
     private void stopIntake() {
-        if (leftEncoder1.getPosition() > 100)) {
+        if (leftEncoder1.getPosition() > 100) {
             m_intake.set(0);
         }
     }
