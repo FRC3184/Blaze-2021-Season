@@ -83,7 +83,7 @@ public class Robot extends TimedRobot {
     private static int AUTONOMOUS_STATE = 0;
     private static int autoState = 0;
 
-    Autonomous auto = new Autonomous();
+    //Autonomous auto = new Autonomous();
 
     NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");
     NetworkTableEntry xOffset = limelightTable.getEntry("tx"); // pixel - x axis
@@ -101,6 +101,7 @@ public class Robot extends TimedRobot {
     double deadzone = 1.5;
     double dr;
     double waittime = .55;
+    int shootCouter = 0;
 
     //private WPI_VictorSPX m_rightdoor;
 
@@ -198,7 +199,7 @@ public class Robot extends TimedRobot {
         rightEncoder1.setPosition(0);
         rightEncoder2.setPosition(0);
         AUTONOMOUS_STATE = 0;
-        auto.resetState();
+        //auto.resetState();
     }
 
     /**
@@ -231,33 +232,49 @@ public class Robot extends TimedRobot {
                         resetEncoder();
                         resetTimer();
                         aim(xTargetCenterOffset, target);
+                        dr = xTargetCenterOffset;
+                        if (Math.abs(dr) < deadzone){
+                          setAutoState(1);
+                        }
+                        break;
                     case 1:
                         resetEncoder();
                         resetTimer();
                         shoot();
+
+                        break;
                     case 2:
                         resetEncoder();
                         resetTimer();
                         lowerArm();
+                        setAutoState(3);
+                        break;
                     case 3:
                         resetEncoder();
                         resetTimer();
                         startIntake();
                         driveForward();
                         stopArm();
+                        setAutoState(4);
+                        break;
                     case 4:
                         resetEncoder();
                         resetTimer();
                         driveBackwards();
                         stopIntake();
+                        setAutoState(5);
+                        break;
                     case 5:
                         resetEncoder();
                         resetTimer();
                         raiseArm();
+                        setAutoState(0);
+                        break;
                     default:
                         resetEncoder();
                         resetTimer();
                         setAutoState(0);
+                        break;
 
                 }
                 // auto.runAuto();
@@ -532,7 +549,9 @@ public class Robot extends TimedRobot {
 
     private void shoot() {
       double time = Timer.getFPGATimestamp();
-
+  
+      
+        shootCouter++;
         limelightLights.setNumber(1);
         SmartDashboard.putNumber("time", time - startTime);
 
@@ -547,11 +566,15 @@ public class Robot extends TimedRobot {
             m_patrick.set(-1);
         } else if (time - startTime > 4) {
             startTime = Timer.getFPGATimestamp();
+            if (shootCouter < 2){
             setAutoState(2);
+            }
         } else {
             m_patrick.set(0);
             m_feeder.set(0);
         }
+      
+      
     }
 
     private void lowerArm() {
