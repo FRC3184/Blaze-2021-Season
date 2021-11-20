@@ -547,7 +547,7 @@ public class Robot extends TimedRobot {
         }
 
         if (binaryIstarget > 0 && leftLimitSwitch.get() && rightLimitSwitch.get()) {
-            dr = xTargetCenterOffset;
+            dr = xOffset;
             if (Math.abs(dr) < deadzone) {
                 dr = 0;
             }
