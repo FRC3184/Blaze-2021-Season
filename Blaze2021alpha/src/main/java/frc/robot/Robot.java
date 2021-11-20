@@ -101,7 +101,7 @@ public class Robot extends TimedRobot {
     double deadzone = 1.5;
     double dr;
     double waittime = .55;
-//    int shootCounter = 0;
+    //    int shootCounter = 0;
     boolean hasNotShot = true;
 
     //private WPI_VictorSPX m_rightdoor;
@@ -265,41 +265,28 @@ public class Robot extends TimedRobot {
                         // also should we actually be resetting encoders/tiemr each case?
                         // what exactly does resetting both of them do?
 
-                        stopArm();
-                        setAutoState(4);
+                        if (leftEncoder1.getPositioin() > 100) {
+                            resetEncoder();
+                            stopIntake();
+                            stopArm();
+                            setAutoState(4);
+                        }
+
                         break;
                     case 4:
                         resetEncoder();
                         resetTimer();
                         driveBackwards();
-
-                        // is there a reason we stop the intake after driving backwards
-                        // instead of vice-versa?
-
-                        stopIntake();
-
-                        // need to clarify starting and stopping intake for case statements
-                        // currently the logic isn't making much sense as to what's being done
-                        // and why
-
-                        setAutoState(5);
+                        if (leftEncoder1.getPosition() < -100) {
+                            resetTimer();
+                            resetEncoder();
+                            setAutoState(5);
+                        }
                         break;
                     case 5:
                         resetEncoder();
                         resetTimer();
-                        raiseArm();
-
-                        // I think I figured out the issue
-                        // inside this call (and in the other main version of the logic)
-                        // we calll setAutoState(6) within an else-if branch. But if that
-                        // condition isn't being met we're not advancing it to the next
-                        // case. We need to look into when we want to call setAutoState(6)
-                        // so that we can get the final round of collected balls to be fired.
-
-                        // or  in our refactored case calling setAutoState(0) again instead of
-                        // calling setAutoState(6).
-
-                        setAutoState(0);
+                        raiseArm(); // jumps back to 0
                         break;
                     default:
                         resetEncoder();
@@ -600,8 +587,7 @@ public class Robot extends TimedRobot {
             if (hasNotShot) { // can replace comparison with simple flag
                 setAutoState(2);
                 hasNotShot = false;
-            }
-            else {
+            } else {
                 //do nothing - should update code to stop robot so it's ready for next stage of competitionf
             }
         } else {
@@ -643,7 +629,7 @@ public class Robot extends TimedRobot {
             resetTimer();
             m_door.set(0);
             m_arm.set(0);
-            setAutoState(6);
+            setAutoState(0);
         }
     }
 
@@ -656,11 +642,7 @@ public class Robot extends TimedRobot {
     }
 
     private void stopIntake() {
-        if (leftEncoder1.getPosition() < -100) {
-            resetTimer();
-            resetEncoder();
-            m_intake.set(0);
-        }
+        m_intake.set(0);
     }
 
     private void driveForward() {
