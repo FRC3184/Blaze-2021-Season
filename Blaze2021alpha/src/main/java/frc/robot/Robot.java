@@ -230,28 +230,21 @@ public class Robot extends TimedRobot {
                 // Put custom auto code here
                 switch (autoState) {
                     case 0:
-                        resetEncoder();
-                        resetTimer();
                         aim(xTargetCenterOffset, target);
                         if (Math.abs(dr) < deadzone) {
+                            resetEncoder();
+                            resetTimer();
                             setAutoState(1);
                         }
                         break;
                     case 1:
-                        resetEncoder();
-                        resetTimer();
                         shoot();
 
                         break;
                     case 2:
-                        resetEncoder();
-                        resetTimer();
                         lowerArm();
-                        setAutoState(3);
                         break;
                     case 3:
-                        resetEncoder();
-                        resetTimer();
                         startIntake();
                         driveForward();
 
@@ -266,16 +259,15 @@ public class Robot extends TimedRobot {
                         // what exactly does resetting both of them do?
 
                         if (leftEncoder1.getPositioin() > 100) {
-                            resetEncoder();
                             stopIntake();
                             stopArm();
+                            resetEncoder();
+                            resetTimer();
                             setAutoState(4);
                         }
 
                         break;
                     case 4:
-                        resetEncoder();
-                        resetTimer();
                         driveBackwards();
                         if (leftEncoder1.getPosition() < -100) {
                             resetTimer();
@@ -284,9 +276,7 @@ public class Robot extends TimedRobot {
                         }
                         break;
                     case 5:
-                        resetEncoder();
-                        resetTimer();
-                        raiseArm(); // jumps back to 0
+                        raiseArm(); // jumps pack to 0
                         break;
                     default:
                         resetEncoder();
@@ -585,6 +575,8 @@ public class Robot extends TimedRobot {
 
             startTime = Timer.getFPGATimestamp();
             if (hasNotShot) { // can replace comparison with simple flag
+                resetEncoder();
+                resetTimer();
                 setAutoState(2);
                 hasNotShot = false;
             } else {
@@ -607,6 +599,7 @@ public class Robot extends TimedRobot {
         } else if (time - startTime > 1) {
             resetEncoder();
             resetTimer();
+            setAutoState(3);
         }
     }
 
@@ -625,10 +618,10 @@ public class Robot extends TimedRobot {
             m_arm.set(.5);
             m_door.set(.5);
         } else if (time - startTime > 1) {
-            resetEncoder();
-            resetTimer();
             m_door.set(0);
             m_arm.set(0);
+            resetEncoder();
+            resetTimer();
             setAutoState(0);
         }
     }
