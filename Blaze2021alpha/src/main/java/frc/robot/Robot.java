@@ -101,7 +101,8 @@ public class Robot extends TimedRobot {
     double deadzone = 1.5;
     double dr;
     double waittime = .55;
-    int shootCouter = 0;
+//    int shootCounter = 0;
+    boolean hasNotShot = true;
 
     //private WPI_VictorSPX m_rightdoor;
 
@@ -162,7 +163,7 @@ public class Robot extends TimedRobot {
         m_rightStick = new XboxController(1);
 
     }
-    
+
     /**
      * This function is called every robot packet, no matter the mode. Use this for
      * items like diagnostics that you want ran during disabled, autonomous,
@@ -214,7 +215,7 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void autonomousPeriodic() {
-        double time = Timer.getFPGATimestamp();
+        double time = Timer.getFPGATimestamp(); // need to remove after updating other autonomous
         SmartDashboard.putNumber("autostep", AUTONOMOUS_STATE);
         SmartDashboard.putNumber("autoState", autoState);
         SmartDashboard.putNumber("distance", leftEncoder1.getPosition());
@@ -232,9 +233,8 @@ public class Robot extends TimedRobot {
                         resetEncoder();
                         resetTimer();
                         aim(xTargetCenterOffset, target);
-                        dr = xTargetCenterOffset;
-                        if (Math.abs(dr) < deadzone){
-                          setAutoState(1);
+                        if (Math.abs(dr) < deadzone) {
+                            setAutoState(1);
                         }
                         break;
                     case 1:
@@ -254,6 +254,17 @@ public class Robot extends TimedRobot {
                         resetTimer();
                         startIntake();
                         driveForward();
+
+                        // if(leftEncoder2.getPosition() < 100) code hasn't been replaced
+                        // by functinos
+
+                        // need clarification on `leftEncorder1.getPosition() > 100)`
+                        // not sure we want to be stopping the intake in case 3 at all
+                        // or else we should stop it right before backing up maybe?
+
+                        // also should we actually be resetting encoders/tiemr each case?
+                        // what exactly does resetting both of them do?
+
                         stopArm();
                         setAutoState(4);
                         break;
@@ -261,13 +272,33 @@ public class Robot extends TimedRobot {
                         resetEncoder();
                         resetTimer();
                         driveBackwards();
+
+                        // is there a reason we stop the intake after driving backwards
+                        // instead of vice-versa?
+
                         stopIntake();
+
+                        // need to clarify starting and stopping intake for case statements
+                        // currently the logic isn't making much sense as to what's being done
+                        // and why
+
                         setAutoState(5);
                         break;
                     case 5:
                         resetEncoder();
                         resetTimer();
                         raiseArm();
+
+                        // I think I figured out the issue
+                        // inside this call (and in the other main version of the logic)
+                        // we calll setAutoState(6) within an else-if branch. But if that
+                        // condition isn't being met we're not advancing it to the next
+                        // case. We need to look into when we want to call setAutoState(6)
+                        // so that we can get the final round of collected balls to be fired.
+
+                        // or  in our refactored case calling setAutoState(0) again instead of
+                        // calling setAutoState(6).
+
                         setAutoState(0);
                         break;
                     default:
@@ -539,7 +570,7 @@ public class Robot extends TimedRobot {
         }
 
         if (binaryIstarget > 0 && leftLimitSwitch.get() && rightLimitSwitch.get()) {
-            dr = xOffset;
+            dr = xTargetCenterOffset;
             if (Math.abs(dr) < deadzone) {
                 dr = 0;
             }
@@ -548,10 +579,7 @@ public class Robot extends TimedRobot {
     }
 
     private void shoot() {
-      double time = Timer.getFPGATimestamp();
-  
-      
-        shootCouter++;
+        double time = Timer.getFPGATimestamp();
         limelightLights.setNumber(1);
         SmartDashboard.putNumber("time", time - startTime);
 
@@ -560,21 +588,28 @@ public class Robot extends TimedRobot {
         } else {
             m_shooter.set(0);
         }
-
         if (time - startTime < 4 && time - startTime > .5) {
             m_feeder.set(-.9);
             m_patrick.set(-1);
         } else if (time - startTime > 4) {
+
+            // need to evaluate why this else if case isn't
+            // in case 7 and sort out what to do instead
+
             startTime = Timer.getFPGATimestamp();
-            if (shootCouter < 2){
-            setAutoState(2);
+            if (hasNotShot) { // can replace comparison with simple flag
+                setAutoState(2);
+                hasNotShot = false;
+            }
+            else {
+                //do nothing - should update code to stop robot so it's ready for next stage of competitionf
             }
         } else {
             m_patrick.set(0);
             m_feeder.set(0);
         }
-      
-      
+
+
     }
 
     private void lowerArm() {
@@ -585,6 +620,7 @@ public class Robot extends TimedRobot {
             m_arm.set(-.5);
         } else if (time - startTime > 1) {
             resetEncoder();
+            resetTimer();
         }
     }
 
@@ -604,7 +640,7 @@ public class Robot extends TimedRobot {
             m_door.set(.5);
         } else if (time - startTime > 1) {
             resetEncoder();
-            startTime = Timer.getFPGATimestamp();
+            resetTimer();
             m_door.set(0);
             m_arm.set(0);
             setAutoState(6);
@@ -620,7 +656,9 @@ public class Robot extends TimedRobot {
     }
 
     private void stopIntake() {
-        if (leftEncoder1.getPosition() > 100) {
+        if (leftEncoder1.getPosition() < -100) {
+            resetTimer();
+            resetEncoder();
             m_intake.set(0);
         }
     }
@@ -638,7 +676,6 @@ public class Robot extends TimedRobot {
             m_rightMotor1.set(0);
             m_rightMotor2.set(0);
         }
-
     }
 
     private void driveLeftMotorForward() {
@@ -688,13 +725,6 @@ public class Robot extends TimedRobot {
     private void resetTimer() {
         startTime = Timer.getFPGATimestamp();
     }
-
-
-
-
-
-
-
 
 
     /**
